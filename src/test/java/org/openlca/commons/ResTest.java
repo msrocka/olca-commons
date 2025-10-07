@@ -1,0 +1,48 @@
+package org.openlca.commons;
+
+import org.junit.Test;
+
+import static org.junit.Assert.*;
+
+public class ResTest {
+
+	@Test
+	public void testValue() {
+		var res = Res.ok(42);
+		assertEquals(Integer.valueOf(42), res.value());
+		assertFalse(res.isEmpty());
+		assertFalse(res.isError());
+		assertTrue(res.isOk());
+		assertEquals("42", res.toString());
+	}
+
+	@Test
+	public void testEmpty() {
+		var res = Res.ok();
+		assertTrue(res.isEmpty());
+		assertFalse(res.isError());
+		assertTrue(res.isOk());
+		assertEquals("ok!", res.toString());
+	}
+
+	@Test
+	public void testError() {
+		var res = Res.error("Some error");
+		assertFalse(res.isEmpty());
+		assertTrue(res.isError());
+		assertFalse(res.isOk());
+		assertEquals("Error: Some error", res.toString());
+	}
+
+	@Test
+	public void testErrorWrapping() {
+		Res<Integer> resI = Res.error("Integer error");
+		Res<Double> resD = resI.wrapError("Double error");
+		Res<String> resS = resD.castError();
+		assertFalse(resS.isEmpty());
+		assertTrue(resS.isError());
+		assertFalse(resS.isOk());
+		assertEquals("Error: Double error\n  -> Integer error", resD.toString());
+	}
+
+}
