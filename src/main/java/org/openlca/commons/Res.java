@@ -1,6 +1,7 @@
 package org.openlca.commons;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /// A return type that can contain the return value, an error, or could be
@@ -36,7 +37,7 @@ public sealed interface Res<T> {
 	/// `null`, if you want to wrap a nullable object use an Optional, like:
 	/// ```
 	/// Res.ok(Optional.of(42));
- /// ```
+	///```
 	static <T> Res<T> ok(T value) {
 		return new Ok<>(value);
 	}
@@ -50,14 +51,12 @@ public sealed interface Res<T> {
 	/// Creates an error with the given message. Note that the error must not be
 	/// `null`.
 	static <T> Res<T> error(String message) {
-		return new Err<>(message);
+		return new Err<>(message, Optional.empty());
 	}
 
 	/// Creates an error from the given message and exception.
 	static <T> Res<T> error(String message, Throwable err) {
-		return err != null
-			? error(message + ": " + err.getMessage())
-			: error(message);
+		return new Err<>(message, Optional.ofNullable(err));
 	}
 
 	/// Casts an error into another result type.
@@ -73,7 +72,8 @@ public sealed interface Res<T> {
 	/// Wraps an error with the given message.
 	default <E> Res<E> wrapError(String message) {
 		return switch (this) {
-			case Err(String inner) -> error(message + "\n  -> " + inner);
+			case Err(String inner, Optional<Throwable> cause) ->
+				error(message + "\n  -> " + inner, cause.orElse(null));
 			default -> castError().wrapError(message);
 		};
 	}
@@ -94,8 +94,12 @@ public sealed interface Res<T> {
 	default T orElseThrow() {
 		return switch (this) {
 			case Ok(T value) -> value;
-			case Err(String error) -> throw new IllegalStateException(
-				"Result is an error: " + error);
+			case Err(String message, Optional<Throwable> cause) -> {
+				var msg = "Result is an error: " + message;
+				throw cause
+					.map(err -> new IllegalStateException(msg, err))
+					.orElseGet(() -> new IllegalStateException(msg));
+			}
 			case Empty() -> throw new IllegalStateException(
 				"Result is empty");
 		};
@@ -143,10 +147,18 @@ public sealed interface Res<T> {
 		}
 	}
 
-	record Err<T>(String error) implements Res<T> {
+	record Err<T>(String message, Optional<Throwable> cause) implements Res<T> {
 
 		public Err {
-			Objects.requireNonNull(error);
+			Objects.requireNonNull(message);
+			Objects.requireNonNull(cause);
+		}
+
+		@Override
+		public String error() {
+			return cause
+				.map(err -> message + "\n  -> " + err.getMessage())
+				.orElse(message);
 		}
 
 		@Override
@@ -161,12 +173,15 @@ public sealed interface Res<T> {
 
 		@Override
 		public T value() {
-			throw new IllegalStateException("Result is an error: " + error);
+			var msg = "Result is an error: " + message;
+			throw cause
+				.map(err -> new IllegalStateException(msg, cause.get()))
+				.orElseGet(() -> new IllegalStateException(msg));
 		}
 
 		@Override
 		public String toString() {
-			return "Error: " + error;
+			return "Error: " + error();
 		}
 	}
 }
