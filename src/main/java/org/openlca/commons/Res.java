@@ -100,8 +100,7 @@ public sealed interface Res<T> {
 					.map(err -> new IllegalStateException(msg, err))
 					.orElseGet(() -> new IllegalStateException(msg));
 			}
-			case Empty() -> throw new IllegalStateException(
-				"Result is empty");
+			case Empty() -> null;
 		};
 	}
 
