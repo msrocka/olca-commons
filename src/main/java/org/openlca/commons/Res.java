@@ -105,14 +105,24 @@ public sealed interface Res<T> {
 		};
 	}
 
-	/// Applies the given function to the value if this result is `Ok`, returning
-	/// a new result. If this result is an error or empty, it returns the error
-	/// or empty result unchanged.
+	/// Applies the given function to the value if this result is `Ok` or `Empty`,
+	/// returning a new result. If this result is an error, it propagates the
+	/// error. Also, if this result is `Empty`, it will call the given function
+	/// with a `null` argument.
 	default <R> Res<R> then(Function<T, Res<R>> fn) {
 		return switch (this) {
 			case Ok(T value) -> fn.apply(value);
 			case Err<T> err -> err.castError();
-			case Empty ignored -> Empty.instance.castError();
+			case Empty ignored -> fn.apply(null);
+		};
+	}
+
+	/// Applies the given supplier if this result is `Ok` or `Empty`. If this
+	/// result is an error, the error is propagated.
+	default <R> Res<R> then(Supplier<Res<R>> fn) {
+		return switch (this) {
+			case Err<?> err -> err.castError();
+			default -> fn.get();
 		};
 	}
 

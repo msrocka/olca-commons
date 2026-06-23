@@ -54,4 +54,39 @@ public class ResTest {
 			Res.error("Some error",
 				new IllegalArgumentException((String) null)).error());
 	}
+
+	@Test
+	public void testThen() {
+
+		// Function variant: Ok -> next result
+		var r1 = Res.ok("hello").then(s -> Res.ok(s.length()));
+		assertFalse(r1.isError());
+		assertEquals(Integer.valueOf(5), r1.value());
+
+		// Function variant: Ok -> error
+		var r2 = Res.ok("hello").<Integer>then(s -> Res.error("oops"));
+		assertTrue(r2.isError());
+
+		// Function variant: error propagation
+		var r3 = Res.<String>error("fail").then(s -> Res.ok(42));
+		assertTrue(r3.isError());
+
+		// Function variant: Empty propagation (was broken before)
+		var r4 = Res.ok().then($ -> Res.ok());
+		assertFalse(r4.isError());
+
+		// Supplier variant: Ok -> supplied value
+		var r5 = Res.ok(42).then(() -> Res.ok("hello"));
+		assertFalse(r5.isError());
+		assertEquals("hello", r5.value());
+
+		// Supplier variant: error propagation
+		var r6 = Res.<Integer>error("fail").then(() -> Res.ok("hello"));
+		assertTrue(r6.isError());
+
+		// Supplier variant: Empty -> supplied value
+		var r7 = Res.ok().then(() -> Res.ok(42));
+		assertFalse(r7.isError());
+		assertEquals(Integer.valueOf(42), r7.value());
+	}
 }
